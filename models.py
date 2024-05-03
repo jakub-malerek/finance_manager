@@ -1,7 +1,8 @@
-from utils import string_has_numbers, string_has_special_characters
+from utils import string_has_numbers, string_has_special_characters, get_attributes_and_values
+
 from random import randint
 from datetime import datetime
-from copy import deepcopy
+from typing import Union
 
 
 class Account:
@@ -141,30 +142,40 @@ class AccountManager:
         for account in self.accounts.values():
             yield account.account_info()
 
-    def update_account(self, id, **kwargs):
-        account = self.get_account(id)
-        account_copy = deepcopy(account_copy)
-        account_attributes = [atr for atr in dir(
-            account) if not atr.startswith("__") and not atr.startswith("_")]
+    def update_account(self, id: str, **kwargs: dict[str, Union[str, int, float]]) -> None:
+        """
+        Update the account with the given ID using the provided keyword arguments.
 
-        for attribute in kwargs:
-            if attribute not in account_attributes:
-                raise KeyError(
-                    f"{attribute} is not an attribute of Account object.")
+        Args:
+            id (int): The ID of the account to update.
+            **kwargs: Keyword arguments representing the attributes to update and their new values.
+
+        Raises:
+            KeyError: If any of the provided attributes are not valid attributes of the Account model.
+            Exception: If an unexpected error occurs while updating the account.
+
+        Returns:
+            None
+        """
+        account = self.get_account(id)
+        backup = get_attributes_and_values(account)
 
         try:
-            if "name" in kwargs:
-                account.name = kwargs["name"]
-            if "second_name" in kwargs:
-                account.second_name = kwargs["second_name"]
-            if "balance_cash" in kwargs:
-                account.balance_cash = kwargs["balance_cash"]
-            if "balance_card" in kwargs:
-                account.balance_card = kwargs["balance_card"]
+            for key, value in kwargs.items():
+                if hasattr(account, key):
+                    setattr(account, key, value)
+                else:
+                    raise KeyError(
+                        f"{key} is not a valid attribute of Account.")
+        except KeyError as e:
+            for key, value in backup.items():
+                setattr(account, key, value)
+            raise KeyError(f"Failed to update account. {e}")
         except Exception as e:
-            print(f"There was an error: {e}\nChanges won't be applied")
-        else:
-            account = account_copy
+            for key, value in backup.items():
+                setattr(account, key, value)
+            raise Exception(
+                "Failed to update account due to an unexpected error.") from e
 
 
 if __name__ == "__main__":
