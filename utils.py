@@ -72,6 +72,14 @@ def get_attributes_and_values(obj):
     return attributes
 
 
+def validate_date(date_input):
+    try:
+        datetime.strptime(date_input, "%Y-%m-%d")
+    except ValueError:
+        raise ValueError(
+            "Invalid date format. Date should be in the format 'YYYY-mm-dd'.")
+
+
 if __name__ == "__main__":
     print(string_has_special_characters("Hello!"))
     print(string_has_special_characters("Hello"))
