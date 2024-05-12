@@ -1,4 +1,6 @@
 from datetime import datetime
+from string import ascii_letters, digits
+import random
 
 
 def string_has_numbers(input_string):
@@ -72,7 +74,19 @@ def get_attributes_and_values(obj):
     return attributes
 
 
-def validate_date(date_input):
+def validate_date(date_input: str) -> None:
+    """
+    Validates the format of a date string.
+
+    Parameters:
+    date_input (str): The date string to be validated.
+
+    Raises:
+    ValueError: If the date string is not in the format 'YYYY-mm-dd'.
+
+    Returns:
+    None
+    """
     try:
         datetime.strptime(date_input, "%Y-%m-%d")
     except ValueError:
@@ -80,7 +94,19 @@ def validate_date(date_input):
             "Invalid date format. Date should be in the format 'YYYY-mm-dd'.")
 
 
+def random_string_generator(length=10):
+    # set of characters to pick, but the chance of getting a digit is increased compared to change of getting an ascii letter
+    character_set = list(ascii_letters) + \
+        (int(len(ascii_letters)/len(digits))*list(digits))
+
+    return "".join(random.choices(character_set, k=length))
+
+
 if __name__ == "__main__":
     print(string_has_special_characters("Hello!"))
     print(string_has_special_characters("Hello"))
     print(string_has_special_characters("Hello@#$@#"))
+
+    print(random_string_generator(length=20))
+    print(list(ascii_letters) +
+          (int(len(ascii_letters)/len(digits))*list(digits)))

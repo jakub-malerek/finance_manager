@@ -1,11 +1,14 @@
-from utils import string_has_numbers, string_has_special_characters, get_attributes_and_values, validate_date
+from utils import string_has_numbers, string_has_special_characters, get_attributes_and_values, validate_date, random_string_generator
+from config import ITEM_CATEGORIES
 
 from random import randint
 from datetime import datetime
 from typing import Union
+import warnings
 
 
 class Account:
+
     def __init__(self, name, second_name, balance_cash, balance_card) -> None:
         self.name = name
         self.second_name = second_name
@@ -55,15 +58,18 @@ class Account:
         self._balance_card = _balance_card
 
     @id.setter
-    def id(self, _id):
+    def id(self, _id: str):
         if len(_id) == 10:
             if isinstance(_id, str):
-                self._id = _id
+                if _id.isnumeric():
+                    self._id = _id
+                else:
+                    raise ValueError("ID should be made of digits only.")
             else:
                 raise TypeError(
                     f"ID should be an string, input of type {type(_id)} was given.")
         else:
-            raise ValueError("ID should be 10 numbers long.")
+            raise ValueError("ID should be 10 digit long.")
 
     @property
     def account_created_date(self):
@@ -94,7 +100,7 @@ class Account:
         if not isinstance(balance_input, (float, int)):
             raise TypeError(
                 f"Balance should be a number, input of type {type(balance_input)} was given")
-        if not (balance_input > 0):
+        if not (balance_input >= 0):
             raise ValueError("Balance cannot be less than 0")
 
     def id_generator(self):
@@ -141,11 +147,8 @@ class AccountManager:
         self.add_account(
             Account(name, second_name, balance_cash, balance_card))
 
-    def create_account(self,  name, second_name, balance_cash, balance_card):
-        self.add_account(
-            Account(name, second_name, balance_cash, balance_card))
-
     # in case there are accounts created outside of AccountManager and create_account method, there is separate method for adding account
+
     def add_account(self, account: Account) -> None:
         """
         Adds an account to the finance manager.
@@ -237,7 +240,7 @@ class AccountManager:
         if id in self.accounts.keys():
             return self.accounts[id]
         else:
-            raise ValueError(f"No account of given id {id} was found.")
+            raise ValueError(f"No account of given ID {id} was found.")
 
     # Future improvements regarding more advanced search capabilities
     def filter_account_name(self, pattern_search: str = False, **kwargs: dict[str, str]) -> list[Account]:
@@ -403,12 +406,218 @@ class AccountManager:
         return list(self.accounts.values())
 
 
-if __name__ == "__main__":
-    manager = AccountManager()
+class Transaction:
+    PAYMENT_METHODS = ["CARD", "CASH"]
+    ITEM_CATEOGIRES = ITEM_CATEGORIES
 
-    ac1 = Account("John", "Doe", 1000, 2000)
-    ac1.id = "1234567890"
-    manager.add_account(ac1)
-    manager.update_account("1234567890", name="Martinez",
-                           balance_card="100000000")
-    print(manager.get_account("1234567890").account_info())
+    def __init__(self, user_id, cost, payment_method, item, quantity, item_category, vendor):
+        self.user_id = user_id
+        self.transaction_id = random_string_generator(length=20)
+        self.cost = cost
+        self.payment_method = payment_method
+        self.item = item
+        self.quantity = quantity
+        self.item_category = item_category
+        self.vendor = vendor
+        self.transaction_date = datetime.today().strftime("%Y-%m-%d")
+
+    @property
+    def transaction_id(self):
+        return self._transaction_id
+
+    @transaction_id.setter
+    def transaction_id(self, _transaction_id):
+        if isinstance(_transaction_id, str):
+            if len(_transaction_id) == 20:
+                self._transaction_id = _transaction_id
+            else:
+                raise ValueError(
+                    "ID for transaction should be exactly 20 characters long.")
+        else:
+            raise TypeError("ID for transaction should be of type string.")
+
+    @property
+    def cost(self):
+        return self._cost
+
+    @cost.setter
+    def cost(self, _cost):
+        if isinstance(_cost, (int, float)):
+            if _cost > 0:
+                self._cost = _cost
+            else:
+                raise ValueError("Cost of transaction cannot be less than 0.")
+        else:
+            raise TypeError(
+                "Value of cost should be either integer or float number.")
+
+    @property
+    def payment_method(self):
+        return self._payment_method
+
+    @payment_method.setter
+    def payment_method(self, _payment_method):
+        if _payment_method in Transaction.PAYMENT_METHODS:
+            self._payment_method = _payment_method
+        else:
+            raise ValueError("Avaible payment methods are either card or cash")
+
+    @property
+    def item(self):
+        return self._item
+
+    @item.setter
+    def item(self, _item):
+        if isinstance(_item, str):
+            self._item = _item
+        else:
+            raise TypeError("Value for item field should be a string")
+
+    @property
+    def quantity(self):
+        return self._quantity
+
+    @quantity.setter
+    def quantity(self, _quantity):
+        if isinstance(_quantity, int):
+            if _quantity > 0:
+                self._quantity = _quantity
+            else:
+                raise ValueError("Quantity cannot be less than 0.")
+        else:
+            raise TypeError("Quantity value must be an integer.")
+
+    @property
+    def item_category(self):
+        return self._item_category
+
+    @item_category.setter
+    def item_category(self, _item_category):
+        if _item_category in Transaction.ITEM_CATEOGIRES:
+            self._item_category = _item_category
+        else:
+            raise ValueError(
+                f"Category {_item_category} is not supported category.")
+
+    @property
+    def vendor(self):
+        return self._vendor
+
+    @vendor.setter
+    def vendor(self, _vendor):
+        if isinstance(_vendor, str):
+            self._vendor = _vendor
+        else:
+            TypeError("Value for vendor should be of type string.")
+
+    @property
+    def transaction_date(self):
+        return self._transaction_date
+
+    @transaction_date.setter
+    def transaction_date(self, _transaction_date):
+        validate_date(_transaction_date)
+        self._transaction_date = _transaction_date
+
+    def transaction_info(self):
+        return f"Transaction ID: {self.transaction_id} \n item/service: {self.item} | category: {self.item_category} | quantity: {self.quantity} | cost: {self.cost} |  method of payment: {self.payment_method.lower()} | bought from: {self.vendor}"
+
+
+class TransactionManager:
+    def __init__(self, account_manager: AccountManager):
+        self.transacations = {}
+        self.account_manager = account_manager
+
+    @property
+    def account_manager(self):
+        return self._account_manager
+
+    @account_manager.setter
+    def account_manager(self, _account_manager):
+        if isinstance(_account_manager, AccountManager):
+            self._account_manager = _account_manager
+        else:
+            raise TypeError(
+                f"AccountManager instance is expected, {type(_account_manager)} type was given")
+
+    def create_transaction(self, user_id, cost, payment_method, item, quantity, item_category, vendor):
+        self.validate_account(user_id)
+        self.add_transcation(user_id, Transaction(
+            user_id, cost, payment_method, item, quantity, item_category, vendor))
+
+    def add_transcation(self, user_id: str, transaction: Transaction) -> None:
+        """
+        Adds a transaction to the transaction manager.
+
+        Args:
+            user_id (str): The ID of the user.
+            transaction (Transaction): The transaction to be added.
+
+        Raises:
+            ValueError: If the user with the given ID does not exist.
+
+        """
+        if isinstance(transaction, Transaction):
+            self.validate_account(user_id)
+            if user_id in self.transacations.keys():
+                self.transacations[user_id].append(transaction)
+            else:
+                self.transacations[user_id] = [transaction]
+
+            account = self.account_manager.get_account(user_id)
+
+            self.update_balance(account, transaction)
+        else:
+            raise TypeError(
+                f"Transaction object is expected, {type(transaction)} instance was given")
+
+    def validate_account(self, user_id: str) -> None:
+        try:
+            self.account_manager.get_account(user_id)
+        except ValueError as e:
+            raise ValueError(
+                f"Transaction was not registered, account with ID {user_id} does not exist.") from e
+
+    def update_balance(self, account: Account, transaction: Transaction):
+        if transaction.payment_method == "CARD":
+            account.balance_card -= transaction.cost
+        else:
+            account.balance_cash -= transaction.cost
+
+    def get_user_transactions(self, user_id):
+        self.validate_account(user_id)
+
+        user_transactions = self.transacations.get(user_id)
+
+        if user_transactions is None:
+            warnings.warn("There are no transactions for this user!")
+
+        return user_transactions
+
+
+if __name__ == "__main__":
+    account_manager = AccountManager()
+
+    new_account = Account("Osan", "Baram", 3455.29, 100_000_000)
+    new_account.id = "0000000001"
+
+    account_manager.add_account(new_account)
+
+    osan_baram = account_manager.get_account("0000000001")
+
+    account_manager.update_account(
+        "0000000001", name="Rocks", balance_cash=10_000)
+
+    transaction_manager = TransactionManager(account_manager)
+
+    transaction_manager.create_transaction("0000000001", 5_000, payment_method="CASH",
+                                           item="bike", item_category="TRANSPORTATION", quantity=1, vendor="BikeShop")
+
+    # account_manager.update_account("0000000001", balance_cash=7000)
+
+    transaction_manager.create_transaction("0000000001", 5_000, payment_method="CASH",
+                                           item="bike", item_category="HOBBIES", quantity=1, vendor="BikeShop")
+
+    for transaction in transaction_manager.get_user_transactions("0000000001"):
+        print()
+        print(transaction.transaction_info())
