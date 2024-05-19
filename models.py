@@ -635,6 +635,10 @@ class TransactionManager:
                 del self.transacations[user_id][index]
 
 
+account_attributes = list(get_attributes_and_values(
+    Account("dummyName", "dummySName", 0, 0)).keys())
+
+
 if __name__ == "__main__":
 
     account_manager = AccountManager()
@@ -666,3 +670,5 @@ if __name__ == "__main__":
     transaction_manager.reverse_transaction(2, 2)
 
     print(transaction_manager.get_user_transactions(2))
+
+    print(account_attributes)
