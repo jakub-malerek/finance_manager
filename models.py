@@ -8,8 +8,11 @@ import warnings
 
 
 class Account:
+    id_index = 1
 
-    def __init__(self, name, second_name, balance_cash, balance_card) -> None:
+    def __init__(self, name, second_name, balance_cash, balance_card, testing_id=False) -> None:
+        self.testing_id = testing_id
+
         self.name = name
         self.second_name = second_name
         self.balance_cash = balance_cash
@@ -59,7 +62,10 @@ class Account:
 
     @id.setter
     def id(self, _id: str):
-        if len(_id) == 10:
+        if self.testing_id:
+            self._id = Account.id_index
+            Account.id_index += 1
+        elif len(_id) == 10:
             if isinstance(_id, str):
                 if _id.isnumeric():
                     self._id = _id
@@ -131,7 +137,7 @@ class AccountManager:
         self.accounts = {}
 
     # create_account is basically constructor for Account class plus adds that created accound to the manager
-    def create_account(self, name: str, second_name: str, balance_cash: Union[int, float], balance_card: Union[int, float]) -> None:
+    def create_account(self, name: str, second_name: str, balance_cash: Union[int, float], balance_card: Union[int, float], testing_id=False) -> None:
         """
         Creates a new account with the given name, second name, balance in cash, and balance in card.
 
@@ -145,7 +151,7 @@ class AccountManager:
             None
         """
         self.add_account(
-            Account(name, second_name, balance_cash, balance_card))
+            Account(name, second_name, balance_cash, balance_card, testing_id=testing_id))
 
     # in case there are accounts created outside of AccountManager and create_account method, there is separate method for adding account
 
@@ -410,7 +416,11 @@ class Transaction:
     PAYMENT_METHODS = ["CARD", "CASH"]
     ITEM_CATEOGIRES = ITEM_CATEGORIES
 
-    def __init__(self, user_id, cost, payment_method, item, quantity, item_category, vendor):
+    transaction_id_index = 1
+
+    def __init__(self, user_id, cost, payment_method, item, quantity, item_category, vendor, testing_id=False):
+        self.testing_id = testing_id
+
         self.user_id = user_id
         self.transaction_id = random_string_generator(length=20)
         self.cost = cost
@@ -427,7 +437,10 @@ class Transaction:
 
     @transaction_id.setter
     def transaction_id(self, _transaction_id):
-        if isinstance(_transaction_id, str):
+        if self.testing_id:
+            self._transaction_id = Transaction.transaction_id_index
+            Transaction.transaction_id_index += 1
+        elif isinstance(_transaction_id, str):
             if len(_transaction_id) == 20:
                 self._transaction_id = _transaction_id
             else:
@@ -540,12 +553,12 @@ class TransactionManager:
             raise TypeError(
                 f"AccountManager instance is expected, {type(_account_manager)} type was given")
 
-    def create_transaction(self, user_id, cost, payment_method, item, quantity, item_category, vendor):
+    def create_transaction(self, user_id, cost, payment_method, item, quantity, item_category, vendor, testing_id=False):
         self.validate_account(user_id)
-        self.add_transcation(user_id, Transaction(
-            user_id, cost, payment_method, item, quantity, item_category, vendor))
+        self.add_transcation(Transaction(
+            user_id, cost, payment_method, item, quantity, item_category, vendor, testing_id=False))
 
-    def add_transcation(self, user_id: str, transaction: Transaction) -> None:
+    def add_transcation(self, transaction: Transaction) -> None:
         """
         Adds a transaction to the transaction manager.
 
@@ -557,7 +570,9 @@ class TransactionManager:
             ValueError: If the user with the given ID does not exist.
 
         """
+
         if isinstance(transaction, Transaction):
+            user_id = transaction.user_id
             self.validate_account(user_id)
             if user_id in self.transacations.keys():
                 self.transacations[user_id].append(transaction)
@@ -578,11 +593,17 @@ class TransactionManager:
             raise ValueError(
                 f"Transaction was not registered, account with ID {user_id} does not exist.") from e
 
-    def update_balance(self, account: Account, transaction: Transaction):
-        if transaction.payment_method == "CARD":
-            account.balance_card -= transaction.cost
+    def update_balance(self, account: Account, transaction: Transaction, reverse=False):
+        if not reverse:
+            if transaction.payment_method == "CARD":
+                account.balance_card -= transaction.cost
+            else:
+                account.balance_cash -= transaction.cost
         else:
-            account.balance_cash -= transaction.cost
+            if transaction.payment_method == "CARD":
+                account.balance_card += transaction.cost
+            else:
+                account.balance_cash += transaction.cost
 
     def get_user_transactions(self, user_id):
         self.validate_account(user_id)
@@ -594,30 +615,54 @@ class TransactionManager:
 
         return user_transactions
 
+    def get_user_transaction(self, user_id, transaction_id):
+        self.validate_account(user_id)
+
+        transactions = self.get_user_transactions(user_id)
+
+        for transaction in transactions:
+            if transaction.transaction_id == transaction_id:
+                return transaction
+
+    def reverse_transaction(self, user_id, transaction_id):
+        transactions = self.get_user_transactions(user_id)
+
+        account = self.account_manager.get_account(user_id)
+
+        for index, transaction in enumerate(transactions):
+            if transaction.transaction_id == transaction_id:
+                self.update_balance(account, transaction, reverse=True)
+                del self.transacations[user_id][index]
+
 
 if __name__ == "__main__":
+
     account_manager = AccountManager()
 
-    new_account = Account("Osan", "Baram", 3455.29, 100_000_000)
-    new_account.id = "0000000001"
+    account = Account("test", "testt", 200, 20, testing_id=True)
 
-    account_manager.add_account(new_account)
+    account_manager.add_account(
+        Account("Man", "Manly", 100, 25, testing_id=True))
 
-    osan_baram = account_manager.get_account("0000000001")
+    account_manager.add_account(account)
 
-    account_manager.update_account(
-        "0000000001", name="Rocks", balance_cash=10_000)
+    account_manager.create_account(
+        "testthree", "testtthree", 300, 30, testing_id=True)
+
+    # account_manager.delete_account(2, "2024-05-19", "Man", "Manly")
+
+    account_manager.delete_account(1, "2024-05-19", "test", "testt")
 
     transaction_manager = TransactionManager(account_manager)
 
-    transaction_manager.create_transaction("0000000001", 5_000, payment_method="CASH",
-                                           item="bike", item_category="TRANSPORTATION", quantity=1, vendor="BikeShop")
+    transaction_manager.add_transcation(Transaction(
+        2, 25, "CASH", "Nike TN boots AR5", 1, "CLOTHING", "Nike", testing_id=True))
 
-    # account_manager.update_account("0000000001", balance_cash=7000)
+    transaction_manager.add_transcation(Transaction(
+        2, 30, "CASH", "Nike Af1", 1, "CLOTHING", "Nike", testing_id=True))
 
-    transaction_manager.create_transaction("0000000001", 5_000, payment_method="CASH",
-                                           item="bike", item_category="HOBBIES", quantity=1, vendor="BikeShop")
+    transaction_manager.reverse_transaction(2, 1)
 
-    for transaction in transaction_manager.get_user_transactions("0000000001"):
-        print()
-        print(transaction.transaction_info())
+    transaction_manager.reverse_transaction(2, 2)
+
+    print(transaction_manager.get_user_transactions(2))
