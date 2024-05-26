@@ -65,6 +65,7 @@ class Account:
         if self.testing_id:
             self._id = Account.id_index
             Account.id_index += 1
+            self.testing_id = False
         elif len(_id) == 10:
             if isinstance(_id, str):
                 if _id.isnumeric():
@@ -93,7 +94,7 @@ class Account:
                     "Name or second name length should be between 1 and 100 characters.")
             if string_has_numbers(name_input):
                 raise ValueError(
-                    "Name or second name should contain only alphabet characters, no numbers are allowed.")
+                    "Name or second name should contain only alphabet characters, numbers are not allowed.")
             if string_has_special_characters(name_input):
                 raise ValueError(
                     "Name or second name should not contain any special characters like: !,$,@ etc.")
@@ -172,7 +173,7 @@ class AccountManager:
             raise TypeError(
                 f"Account class object is expected, {type(account)} type was given.")
 
-    def update_account(self, id: str, **kwargs: dict[str, Union[str, int, float]]) -> None:
+    def update_account(self, id: str, fields: dict[str, Union[str, int, float]]) -> None:
         """
         Update the account with the given ID using the provided keyword arguments.
 
@@ -191,22 +192,29 @@ class AccountManager:
         backup = get_attributes_and_values(account)
 
         try:
-            for key, value in kwargs.items():
+            for key, value in fields.items():
                 if hasattr(account, key):
+                    if key == "id":
+                        self.accounts[value] = self.accounts.get(
+                            getattr(account, key))
+                        del self.accounts[getattr(account, key)]
                     setattr(account, key, value)
                 else:
                     raise KeyError(
                         f"{key} is not a valid attribute of Account.")
         except KeyError as e:
             for key, value in backup.items():
+                account.testing_id = True
                 setattr(account, key, value)
             raise KeyError(f"Failed to update account: {e}") from e
         except TypeError as e:
             for key, value in backup.items():
+                account.testing_id = True
                 setattr(account, key, value)
             raise e
         except Exception as e:
             for key, value in backup.items():
+                account.testing_id = True
                 setattr(account, key, value)
             raise Exception(
                 "Failed to update account due to an unexpected error.") from e
