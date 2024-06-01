@@ -1,4 +1,4 @@
-from models import AccountManager, TransactionManager, account_attributes
+from models import AccountManager, TransactionManager, account_attributes_and_types, transaction_attributes_and_types
 
 
 class AdminPanel:
@@ -6,14 +6,19 @@ class AdminPanel:
         self.account_manager = account_manager
         self.transaction_manager = transaction_manager
 
-    def _validate_account(self, id):
+    def _initialize_account(self, message):
+        id = input(f"Account's ID to {message}: ")
+
+        if len(id) == 1:
+            id = int(id)
+
         try:
             account = self.account_manager.get_account(id)
         except ValueError:
             print(f"Account of ID {id} doesn't exist.")
             return
         else:
-            return account
+            return account, id
 
     def create_account(self):
         print("--- CREATE ACCOUNT ---")
@@ -39,12 +44,10 @@ class AdminPanel:
 
     def delete_account(self):
         print("--- DELETE ACCOUNT ---")
-        id = input("Account's ID to delete: ")
 
-        if len(id) == 1:
-            id = int(id)
+        account, id = self._initialize_account("delete")
 
-        if self._validate_account(id):
+        if account:
             print("-- Provide account information for verification --")
             date = input("Account creation date (YYYY-MM-DD): ")
             name = input("Name: ")
@@ -58,16 +61,13 @@ class AdminPanel:
 
     def update_account(self):
         print("--- UPDATE ACCOUNT ---")
-        id = input("Account's ID to update: ")
 
-        if len(id) == 1:
-            id = int(id)
-
-        account = self._validate_account(id)
+        account, id = self._initialize_account("update")
         if account:
 
             # exclude attributes for testing and development purposes
-            possible_information_to_update = account_attributes
+            possible_information_to_update = list(
+                account_attributes_and_types.keys())
             for index, information in enumerate(possible_information_to_update):
                 if information in ["id_index", "testing_id"]:
                     del possible_information_to_update[index]
@@ -108,18 +108,47 @@ class AdminPanel:
                 new_information = input(
                     f"New value for \"{possible_information_to_update.get(field)}\": ")
 
-                if isinstance(getattr(account, possible_information_to_update.get(field)), (int, float)) and possible_information_to_update.get(field) != "id":
-                    new_information = float(new_information)
-
+                try:
+                    if isinstance(getattr(account, possible_information_to_update.get(field)), (int, float)) and possible_information_to_update.get(field) != "id":
+                        new_information = float(new_information)
+                except ValueError as e:
+                    print(f"""Numeric value for {possible_information_to_update.get(field)} is expected.
+                          - Account was not updated - """)
+                    return
                 information_to_update_values[possible_information_to_update.get(
                     field)] = new_information
-
-            self.account_manager.update_account(
-                id=id, fields=information_to_update_values)
-
-            print("- Account was updated -")
+            try:
+                self.account_manager.update_account(
+                    id=id, fields=information_to_update_values)
+            except Exception as e:
+                print(
+                    f"- Some error occured, account was not updated - \n {e}")
+            else:
+                print("- Account was updated -")
         else:
             return
+
+    def add_transcation(self):
+        print("--- ADD TRANSACTION ---")
+
+        account, id = self._initialize_account("add transaction")
+
+        if account:
+
+            required_transaction_fields = list(
+                transaction_attributes_and_types.keys())
+            required_transaction_fields = [field for field in required_transaction_fields if field not in [
+                "transaction_date", "transaction_id"]]
+            required_transaction_field_types = {
+                field: type for field, type in transaction_attributes_and_types.items() if field in required_transaction_fields}
+
+        transaction_info = {}
+
+        print("Provide transaction information:")
+
+        for field in required_transaction_fields:
+
+            transaction_info[field] = input(f"{field}: ")
 
 
 if __name__ == "__main__":
@@ -130,4 +159,6 @@ if __name__ == "__main__":
 
     admin_panel.create_account()
     admin_panel.update_account()
-    print(account_manager.get_account("1112223334"))
+    print(account_manager.get_account("1112223334").account_info())
+    admin_panel.delete_account()
+    print("end")

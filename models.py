@@ -195,10 +195,12 @@ class AccountManager:
             for key, value in fields.items():
                 if hasattr(account, key):
                     if key == "id":
-                        self.accounts[value] = self.accounts.get(
-                            getattr(account, key))
-                        del self.accounts[getattr(account, key)]
-                    setattr(account, key, value)
+                        original_id = getattr(account, "id")
+                        setattr(account, "id", value)
+                        self.accounts[value] = account
+                        del self.accounts[original_id]
+                    else:
+                        setattr(account, key, value)
                 else:
                     raise KeyError(
                         f"{key} is not a valid attribute of Account.")
@@ -208,6 +210,11 @@ class AccountManager:
                 setattr(account, key, value)
             raise KeyError(f"Failed to update account: {e}") from e
         except TypeError as e:
+            for key, value in backup.items():
+                account.testing_id = True
+                setattr(account, key, value)
+            raise e
+        except ValueError as e:
             for key, value in backup.items():
                 account.testing_id = True
                 setattr(account, key, value)
@@ -448,6 +455,7 @@ class Transaction:
         if self.testing_id:
             self._transaction_id = Transaction.transaction_id_index
             Transaction.transaction_id_index += 1
+            self.testing_id = False
         elif isinstance(_transaction_id, str):
             if len(_transaction_id) == 20:
                 self._transaction_id = _transaction_id
@@ -564,7 +572,7 @@ class TransactionManager:
     def create_transaction(self, user_id, cost, payment_method, item, quantity, item_category, vendor, testing_id=False):
         self.validate_account(user_id)
         self.add_transcation(Transaction(
-            user_id, cost, payment_method, item, quantity, item_category, vendor, testing_id=False))
+            user_id, cost, payment_method, item, quantity, item_category, vendor, testing_id=testing_id))
 
     def add_transcation(self, transaction: Transaction) -> None:
         """
@@ -623,7 +631,7 @@ class TransactionManager:
 
         return user_transactions
 
-    def get_user_transaction(self, user_id, transaction_id):
+    def get_user_transaction(self, user_id, transaction_id) -> Transaction:
         self.validate_account(user_id)
 
         transactions = self.get_user_transactions(user_id)
@@ -643,40 +651,55 @@ class TransactionManager:
                 del self.transacations[user_id][index]
 
 
-account_attributes = list(get_attributes_and_values(
-    Account("dummyName", "dummySName", 0, 0)).keys())
+def get_input_attributes():
+    dummy_account = Account("dummyName", "dummySName", 1, 1, testing_id=True)
+
+    account_attributes_values = get_attributes_and_values(
+        dummy_account)
+
+    account_attributes_all = list(account_attributes_values.keys())
+
+    account_mutable_attributes = [
+        attr for attr in account_attributes_all if attr not in ["testing_id", "id_index"]]
+
+    dummy_transcation = Transaction(
+        1, 1, "CARD", "d", 1, "CLOTHING", "d", testing_id=True)
+
+    transaction_attributes_values = get_attributes_and_values(
+        dummy_transcation)
+
+    transaction__attributes_all = list(transaction_attributes_values.keys())
+
+    transaction_mutable_attributes = [attr for attr in transaction__attributes_all if attr.islower()
+                                      and attr not in ["transaction_id_index", "testing_id"]]
+
+    account_mutable_attributes_and_types = {k: type(
+        v) for k, v in account_attributes_values.items() if k in account_mutable_attributes}
+    transaction_mutable_attributes_and_types = {k: type(
+        v) for k, v in transaction_attributes_values.items() if k in transaction_mutable_attributes}
+
+    for attr, type_ in account_mutable_attributes_and_types.items():
+        if type_ == int:
+            account_mutable_attributes_and_types[attr] = [
+                int, float]
+
+    account_mutable_attributes_and_types["id"] = [int, str]
+
+    transaction_mutable_attributes_and_types["transaction_id"] = [
+        int, str]
+
+    transaction_mutable_attributes_and_types["user_id"] = [
+        int, str]
+
+    return {"account": account_mutable_attributes_and_types, "transaction": transaction_mutable_attributes_and_types}
+
+
+input_attributes = get_input_attributes()
+
+account_attributes_and_types = input_attributes.get("account")
+transaction_attributes_and_types = input_attributes.get("transaction")
 
 
 if __name__ == "__main__":
 
-    account_manager = AccountManager()
-
-    account = Account("test", "testt", 200, 20, testing_id=True)
-
-    account_manager.add_account(
-        Account("Man", "Manly", 100, 25, testing_id=True))
-
-    account_manager.add_account(account)
-
-    account_manager.create_account(
-        "testthree", "testtthree", 300, 30, testing_id=True)
-
-    # account_manager.delete_account(2, "2024-05-19", "Man", "Manly")
-
-    account_manager.delete_account(1, "2024-05-19", "test", "testt")
-
-    transaction_manager = TransactionManager(account_manager)
-
-    transaction_manager.add_transcation(Transaction(
-        2, 25, "CASH", "Nike TN boots AR5", 1, "CLOTHING", "Nike", testing_id=True))
-
-    transaction_manager.add_transcation(Transaction(
-        2, 30, "CASH", "Nike Af1", 1, "CLOTHING", "Nike", testing_id=True))
-
-    transaction_manager.reverse_transaction(2, 1)
-
-    transaction_manager.reverse_transaction(2, 2)
-
-    print(transaction_manager.get_user_transactions(2))
-
-    print(account_attributes)
+    print(account_attributes_and_types)
